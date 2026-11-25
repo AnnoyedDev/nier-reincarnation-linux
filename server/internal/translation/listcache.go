@@ -9,10 +9,11 @@ import (
 )
 
 // listInfo is what the translator needs from list.bin: its md5, its revision
-// and the English text entries. Reading and hashing the 26 MB file on every
+// and the English entries a pack can translate (texts, and images with text). Reading and hashing the 26 MB file on every
 // start is avoided by keeping these beside the builds, keyed by the file's
 // size and modification time (a new import of the game files changes both).
 type listInfo struct {
+	Version  int     `json:"v"` // listInfoVersion; older caches are read again
 	Size     int64   `json:"size"`
 	ModTime  int64   `json:"modTime"` // Unix nanoseconds
 	MD5      string  `json:"md5"`
@@ -27,7 +28,7 @@ func readListInfo(listPath, cachePath string) (*listInfo, error) {
 	}
 	if data, err := os.ReadFile(cachePath); err == nil {
 		var c listInfo
-		if json.Unmarshal(data, &c) == nil && c.Size == st.Size() && c.ModTime == st.ModTime().UnixNano() && c.MD5 != "" {
+		if json.Unmarshal(data, &c) == nil && c.Version == listInfoVersion && c.Size == st.Size() && c.ModTime == st.ModTime().UnixNano() && c.MD5 != "" {
 			return &c, nil
 		}
 	}
@@ -40,9 +41,9 @@ func readListInfo(listPath, cachePath string) (*listInfo, error) {
 		return nil, err
 	}
 	sum := md5.Sum(data)
-	info := &listInfo{Size: st.Size(), ModTime: st.ModTime().UnixNano(), MD5: hex.EncodeToString(sum[:]), Revision: revision}
-	for _, e := range entries { // only these are ever translated: about 6,600 of 200,000
-		if strings.HasPrefix(e.Path, englishTextPrefix) {
+	info := &listInfo{Version: listInfoVersion, Size: st.Size(), ModTime: st.ModTime().UnixNano(), MD5: hex.EncodeToString(sum[:]), Revision: revision}
+	for _, e := range entries { // only these are ever translated: about 14,000 of 200,000
+		if translatable(e.Path) {
 			info.Entries = append(info.Entries, e)
 		}
 	}
@@ -50,4 +51,14 @@ func readListInfo(listPath, cachePath string) (*listInfo, error) {
 		writeFileAtomic(cachePath, data, 0644) // a cache: if it cannot be saved, the next start reads the list again
 	}
 	return info, nil
+}
+
+// listInfoVersion 2: image entries joined the text ones; 3: movies (resources).
+const listInfoVersion = 3
+
+// translatable: an English text bundle, or an English bundle a translated
+// image can replace (an "en" folder outside the voices).
+func translatable(path string) bool {
+	return strings.HasPrefix(path, englishTextPrefix) || (strings.Contains(path, ")en)") && !strings.HasPrefix(path, "voice)")) ||
+		strings.HasSuffix(path, ".mp4")
 }

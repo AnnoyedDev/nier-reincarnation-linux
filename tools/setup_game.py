@@ -17,6 +17,10 @@ and this makes, under the port's folder:
   launcher\\ui\\game            the launcher's title art and font, from the APK
   setup.json                   what was done, for NieR.exe
 
+On Linux (launcher/linux) the same, with the system's 7-Zip, a symlink for a
+folder of assets, and the runtime step run in Wine by the launcher
+(NIER_LAUNCHER --install-runtime), which also gives the game its /data.
+
 Progress goes to stdout, one line each: "step:<i>/<n>:<what>",
 "progress:<0-100>", "note:<text>", "error:<text>", and "done" at the end.
 
@@ -43,6 +47,7 @@ MASTER_NAME = "20240404193219.bin.e"
 MASTER_SHA256 = "60555788242de9a0580b0d86f6d109d67bd9cabd16d7bcda9b9a99745f270778"
 ASSET_BYTES = 21_000_000_000  # revisions\0
 STEPS = 7
+WINDOWS = os.name == "nt"
 
 
 def say(kind, text=""):
@@ -67,10 +72,13 @@ def sha256(path: Path, label: str) -> str:
 
 
 def junction(link: Path, target: Path):
-    """A directory junction (no administrator rights needed)."""
+    """A directory junction (no administrator rights needed); a symlink on Linux."""
     if link.exists() or link.is_symlink():
         return
     link.parent.mkdir(parents=True, exist_ok=True)
+    if not WINDOWS:
+        os.symlink(target, link, target_is_directory=True)
+        return
     r = subprocess.run(["cmd", "/c", "mklink", "/J", str(link), str(target)], capture_output=True, text=True)
     if r.returncode != 0:
         fail(f"Could not link {link} to {target}: {r.stdout.strip()} {r.stderr.strip()}")
@@ -118,12 +126,14 @@ def step_assets(args, root: Path):
     if free < ASSET_BYTES + 2_000_000_000:
         fail(f"Extracting the assets needs about 23 GB free on that drive; {free / 1e9:.1f} GB is free. "
              "Free some space, or extract revisions\\0 elsewhere and choose that folder.")
-    seven = root / "tools" / "7zip" / "7za.exe"
+    seven = seven_zip(root)
     # The dump's revisions\0 may sit inside a folder of the archive (a .7z or a .zip).
     prefix = archive_prefix(seven, args.assets)
     if prefix is None:
         fail("That archive does not hold the game's assets (revisions\\0\\list.bin).")
-    cmd = [str(seven), "x", str(args.assets), f"-o{dest}", prefix + "revisions\\0", "-y", "-bsp1", "-bso0", "-bse1"]
+    sep = "\\" if WINDOWS else "/"
+    cmd = [str(seven), "x", str(args.assets), f"-o{dest}", prefix.replace("\\", sep) + "revisions" + sep + "0",
+           "-y", "-bsp1", "-bso0", "-bse1"]
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     buf = b""
     last = -1
@@ -140,13 +150,24 @@ def step_assets(args, root: Path):
         buf = buf[-64:]
     code = proc.wait()
     if code == 0 and prefix:
-        inner = dest / prefix / "revisions" / "0"
+        inner = dest / prefix.replace("\\", "/") / "revisions" / "0"
         if (inner / "list.bin").is_file():
             (dest / "revisions").mkdir(exist_ok=True)
             shutil.move(str(inner), str(dest / "revisions" / "0"))
-            shutil.rmtree(dest / Path(prefix).parts[0], ignore_errors=True)
+            shutil.rmtree(dest / Path(prefix.replace("\\", "/")).parts[0], ignore_errors=True)
     if code != 0 or not (dest / "revisions" / "0" / "list.bin").is_file():
         fail("Extracting the assets failed: is the archive whole?")
+
+
+def seven_zip(root: Path):
+    """The bundled 7za.exe on Windows; the system's 7-Zip on Linux."""
+    if WINDOWS:
+        return root / "tools" / "7zip" / "7za.exe"
+    for name in ("7z", "7zz", "7za"):
+        found = shutil.which(name)
+        if found:
+            return Path(found)
+    fail("7-Zip is needed to extract the assets: install 7zip (or p7zip), or extract revisions/0 and choose that folder.")
 
 
 def archive_prefix(seven: Path, archive: Path):
@@ -212,12 +233,22 @@ def step_runtime(root: Path):
     data = root / "runtime-data"
     # Android's CPU and system files the game reads (the runtime has none).
     shutil.copytree(HERE / "runtime-overlay", data, dirs_exist_ok=True)
-    runtime = root / "runtime" / "bin" / "winapk-runtime.exe"
-    r = subprocess.run([str(runtime), "--data", str(data), "--apk", str(root / "client" / "NieR-loopback.apk"),
-                        "--install-only"], capture_output=True, text=True, cwd=str(root))
+    if WINDOWS:
+        runtime = root / "runtime" / "bin" / "winapk-runtime.exe"
+        cmd = [str(runtime), "--data", str(data), "--apk", str(root / "client" / "NieR-loopback.apk"), "--install-only"]
+    else:
+        # The runtime is a Windows program: the launcher runs it in the port's Wine prefix.
+        launcher = os.environ.get("NIER_LAUNCHER")
+        if not launcher:
+            fail("On Linux the setup runs from the launcher (nier-launcher).")
+        say("note", "First start of Wine: making the prefix can take a minute")
+        cmd = [launcher, "--install-runtime"]
+    r = subprocess.run(cmd, capture_output=True, text=True, cwd=str(root))
     if r.returncode not in (0, 3):
         tail = (r.stderr or r.stdout).strip().splitlines()[-3:]
         fail("Installing the game failed: " + " / ".join(tail))
+    if not WINDOWS:
+        return  # the launcher's Wine drive gives the game its /data (launcher/linux/src/wine.rs)
     # Java reads the game's files by their Android paths (/data/...), which
     # Windows resolves on the current drive: <drive>:\data leads there.
     link = Path(root.anchor) / "data"

@@ -1,0 +1,8 @@
+# The setup's and patchers' packages on Linux (the launcher installs them in tools/venv).
+UnityPy
+texture2ddecoder
+Pillow
+pycryptodome
+fonttools
+lz4
+msgpack

@@ -13,6 +13,7 @@ import (
 const (
 	listRevisionField = 1
 	listBundleField   = 2
+	listResourceField = 4
 	entryPath         = 3
 	entrySize         = 4
 	entryCRC          = 5
@@ -20,12 +21,13 @@ const (
 	entryObjectID     = 11
 )
 
-// Entry is an asset bundle in list.bin.
+// Entry is an asset bundle in list.bin, or a resource (a movie: no CRC).
 type Entry struct {
 	ObjectID, Path string
 	Size           uint64
 	CRC            uint32
 	MD5            string
+	Resource       bool `json:",omitempty"`
 }
 
 type protoField struct {
@@ -110,7 +112,7 @@ func parseEntry(data []byte) (Entry, bool) {
 	return e, err == nil && e.ObjectID != "" && e.Path != ""
 }
 
-// ParseList reads the revision and the asset bundle entries of list.bin.
+// ParseList reads the revision and the asset bundle and resource entries of list.bin.
 func ParseList(data []byte) (uint64, []Entry, error) {
 	var revision uint64
 	var entries []Entry
@@ -118,8 +120,9 @@ func ParseList(data []byte) (uint64, []Entry, error) {
 		switch {
 		case f.number == listRevisionField && f.wire == 0:
 			revision = f.varint
-		case f.number == listBundleField && f.wire == 2:
+		case (f.number == listBundleField || f.number == listResourceField) && f.wire == 2:
 			if e, ok := parseEntry(f.bytes); ok {
+				e.Resource = f.number == listResourceField
 				entries = append(entries, e)
 			}
 		}
@@ -156,7 +159,7 @@ func PatchList(data []byte, revision uint64, changes map[string]Entry, added [][
 		case f.number == listRevisionField && f.wire == 0:
 			out = appendVarintField(out, listRevisionField, revision)
 			return true
-		case f.number == listBundleField && f.wire == 2 && len(changes) > 0:
+		case (f.number == listBundleField || f.number == listResourceField) && f.wire == 2 && len(changes) > 0:
 			id := entryIDBytes(f.bytes)
 			change, wanted := changes[string(id)]
 			if !wanted {
@@ -176,7 +179,7 @@ func PatchList(data []byte, revision uint64, changes map[string]Entry, added [][
 				}
 				return true
 			})
-			out = appendBytesField(out, listBundleField, entry)
+			out = appendBytesField(out, f.number, entry)
 			found[change.ObjectID] = true
 			return true
 		}

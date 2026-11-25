@@ -207,11 +207,11 @@ func requestedRevision(path string) uint64 {
 	return n
 }
 
-// assetObject is the object id of an asset bundle request (…/unso-<v>-assetbundle/<id>).
+// assetObject is the object id of an asset request (…/unso-<v>-assetbundle/<id> or …-resources/<id>).
 func assetObject(path string) (string, bool) {
 	parts := strings.Split(strings.Trim(path, "/"), "/")
 	for i, p := range parts {
-		if strings.HasPrefix(p, "unso-") && strings.HasSuffix(p, "-assetbundle") && i+1 < len(parts) && parts[i+1] != "" {
+		if strings.HasPrefix(p, "unso-") && (strings.HasSuffix(p, "-assetbundle") || strings.HasSuffix(p, "-resources")) && i+1 < len(parts) && parts[i+1] != "" {
 			return parts[i+1], true
 		}
 	}
@@ -360,4 +360,25 @@ func (t *Translator) serveAsset(w http.ResponseWriter, r *http.Request, id strin
 	w.Header().Set("Content-Type", "application/octet-stream")
 	http.ServeContent(w, r, id+".assetbundle", info.ModTime(), f)
 	return true
+}
+
+// Prebuild builds the active pack for the list now, outside the server (the
+// translation-build command), so the server's next start finds it finished.
+// force rebuilds a finished build (after its images changed).
+func Prebuild(assetRoot, platform string, force bool) (*Manifest, error) {
+	t := New(assetRoot, "", platform)
+	info, err := readListInfo(t.listPath, filepath.Join(filepath.Dir(t.buildsDir), "list-cache.json"))
+	if err != nil {
+		return nil, err
+	}
+	pack, err := t.loadPack()
+	if err != nil || pack == nil {
+		return nil, errors.Join(errors.New("no usable pack"), err)
+	}
+	dir := filepath.Join(t.buildsDir, BuildID(pack.Hash, info.MD5))
+	if m, err := LoadManifest(dir); err == nil && !force {
+		return m, nil
+	}
+	os.RemoveAll(dir)
+	return t.build(t.assetsRevision, info.Entries, info.MD5, pack, dir, t.rebuild)
 }

@@ -343,3 +343,51 @@ func readValue(r *reader, n *typeNode) any {
 	}
 	return v
 }
+
+// Order is the byte order of the objects' data.
+func (sf *SerializedFile) Order() binary.ByteOrder { return sf.order }
+
+// Data is the whole serialized file, as parsed.
+func (sf *SerializedFile) Data() []byte { return sf.data }
+
+// FieldOffsets gives, for every object of the class, the offset in Data of
+// each field outside arrays, by dotted name ("m_StreamData.size"), so fixed
+// size fields can be patched in place.
+func (sf *SerializedFile) FieldOffsets(classID int32) ([]map[string]int, error) {
+	var out []map[string]int
+	for _, o := range sf.objects {
+		if o.tree == nil || classIDs[o.tree.typ] != classID {
+			continue
+		}
+		if o.start < 0 || o.end > int64(len(sf.data)) || o.start > o.end {
+			return nil, fmt.Errorf("object %d lies outside the file", o.pathID)
+		}
+		r := &reader{b: sf.data[o.start:o.end], order: sf.order}
+		offsets := map[string]int{}
+		var walk func(n *typeNode, prefix string)
+		walk = func(n *typeNode, prefix string) {
+			for _, c := range n.children {
+				name := prefix + c.name
+				offsets[name] = int(o.start) + r.p
+				// A plain struct: its fields one by one (readValue reads it the same way).
+				if len(c.children) > 0 && c.children[0].typ != "Array" && c.typ != "string" && c.typ != "TypelessData" {
+					walk(c, name+".")
+					if c.meta&0x4000 != 0 {
+						r.align(4)
+					}
+				} else {
+					readValue(r, c)
+				}
+				if r.err != nil {
+					return
+				}
+			}
+		}
+		walk(o.tree, "")
+		if r.err != nil {
+			return nil, fmt.Errorf("object %d (%s): %w", o.pathID, o.tree.typ, r.err)
+		}
+		out = append(out, offsets)
+	}
+	return out, nil
+}

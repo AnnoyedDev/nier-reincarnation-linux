@@ -1,0 +1,19 @@
+[package]
+name = "nier-launcher"
+version = "1.0.0"
+edition = "2021"
+license = "AGPL-3.0-only"
+description = "The NieR Re[in]carnation PC port's launcher for Linux: the game's runtime in Wine/Proton, the rest native"
+
+[dependencies]
+eframe = { version = "0.37", default-features = false, features = ["default_fonts", "glow", "wayland", "x11"] }
+egui = "0.37"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
+rfd = "0.18"
+serde_json = "1"
+libc = "0.2"
+
+[profile.release]
+opt-level = 2
+strip = true
+lto = "thin"

@@ -53,6 +53,20 @@ func safeRebuild(rebuild Rebuilder, raw []byte, name string, values map[string]s
 	return rebuild(raw, name, values)
 }
 
+// safeRebuildImage is RebuildImage with the image read from its file and a panic as an error.
+func safeRebuildImage(raw []byte, name, imagePath string) (out []byte, crc uint32, err error) {
+	defer func() {
+		if p := recover(); p != nil {
+			out, crc, err = nil, 0, fmt.Errorf("panic: %v", p)
+		}
+	}()
+	img, err := readImage(imagePath)
+	if err != nil {
+		return nil, 0, err
+	}
+	return RebuildImage(raw, name, img)
+}
+
 // Build translates every English text bundle of list with the pack into dir:
 // <objectID>.assetbundle for each bundle that changed, then manifest.json
 // (written last: a build without it is unfinished). assetsRevision is the
@@ -63,8 +77,30 @@ func Build(assetsRevision string, list []Entry, listMD5 string, pack *Pack, dir 
 		return nil, err
 	}
 	m := &Manifest{ID: BuildID(pack.Hash, listMD5), PackHash: pack.Hash, ListMD5: listMD5, Entries: map[string]Entry{}, Skipped: []string{}}
+	var written []string
 	for _, e := range list {
-		if !strings.HasPrefix(e.Path, englishTextPrefix) {
+		if e.Resource {
+			video, ok := pack.Videos[e.Path]
+			if !ok {
+				continue
+			}
+			out, err := os.ReadFile(video)
+			if err != nil {
+				log.Printf("[Translation] %s keeps its English: %v", e.Path, err)
+				m.Skipped = append(m.Skipped, e.Path)
+				continue
+			}
+			// Same file name as bundles so File and serveAsset need no second case.
+			if err := os.WriteFile(filepath.Join(dir, e.ObjectID+".assetbundle"), out, 0644); err != nil {
+				return nil, err
+			}
+			written = append(written, e.ObjectID+".assetbundle")
+			sum := md5.Sum(out)
+			m.Entries[e.ObjectID] = Entry{ObjectID: e.ObjectID, Path: e.Path, Size: uint64(len(out)), MD5: hex.EncodeToString(sum[:]), Resource: true}
+			continue
+		}
+		imagePath, isImage := pack.Images[e.Path]
+		if !isImage && !strings.HasPrefix(e.Path, englishTextPrefix) {
 			continue
 		}
 		file := filepath.Join(assetsRevision, "assetbundle", strings.ReplaceAll(e.Path, ")", "/")+".assetbundle")
@@ -72,7 +108,10 @@ func Build(assetsRevision string, list []Entry, listMD5 string, pack *Pack, dir 
 		var out []byte
 		var crc uint32
 		changed := false
-		if err == nil {
+		if err == nil && isImage {
+			out, crc, err = safeRebuildImage(raw, e.Path, imagePath)
+			changed = err == nil
+		} else if err == nil {
 			out, crc, changed, err = safeRebuild(rebuild, raw, e.Path, pack.Game)
 		}
 		if err != nil {
@@ -83,11 +122,17 @@ func Build(assetsRevision string, list []Entry, listMD5 string, pack *Pack, dir 
 		if !changed {
 			continue
 		}
-		if err := writeFileAtomic(filepath.Join(dir, e.ObjectID+".assetbundle"), out, 0644); err != nil {
+		// No fsync per bundle: the build counts only once manifest.json is
+		// written, after syncFiles below.
+		if err := os.WriteFile(filepath.Join(dir, e.ObjectID+".assetbundle"), out, 0644); err != nil {
 			return nil, err
 		}
+		written = append(written, e.ObjectID+".assetbundle")
 		sum := md5.Sum(out)
 		m.Entries[e.ObjectID] = Entry{ObjectID: e.ObjectID, Path: e.Path, Size: uint64(len(out)), CRC: crc, MD5: hex.EncodeToString(sum[:])}
+	}
+	if err := syncFiles(dir, written); err != nil {
+		return nil, err
 	}
 	data, err := json.Marshal(m)
 	if err != nil {

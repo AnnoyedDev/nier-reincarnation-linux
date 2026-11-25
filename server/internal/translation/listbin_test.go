@@ -130,3 +130,27 @@ func TestRealList(t *testing.T) {
 	}
 	t.Fatal("text)en)gift not found")
 }
+
+func TestListResources(t *testing.T) {
+	list, _ := sampleList()
+	movie := listItem("7LSqzY", "mm01010101_en.mp4", 100, 0, "761aa47e609da3c82328732dbee91574")
+	movie[0] = protoTag(listResourceField, 2)[0] // same entry layout, field 4
+	list = append(list, movie...)
+	_, entries, err := ParseList(list)
+	if err != nil {
+		t.Fatal(err)
+	}
+	last := entries[len(entries)-1]
+	if !last.Resource || last.Path != "mm01010101_en.mp4" {
+		t.Fatalf("movie entry: %+v", last)
+	}
+	out, err := PatchList(list, 900, map[string]Entry{"7LSqzY": {ObjectID: "7LSqzY", Size: 222, MD5: "00000000000000000000000000000000", Resource: true}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, entries, _ = ParseList(out)
+	last = entries[len(entries)-1]
+	if !last.Resource || last.Size != 222 || last.MD5 != "00000000000000000000000000000000" {
+		t.Fatalf("patched movie entry: %+v", last)
+	}
+}

@@ -92,8 +92,20 @@ people have put long sessions into it.
 * **Bug report:** Settings › System › **Export logs**, then open an issue and attach the zip. It leaves
   out your Windows username and PC name.
 
-Known quirks: a few controller buttons do double duty on different screens, and it's Windows only for
-now. A Mac version is in the works.
+Known quirks: a few controller buttons do double duty on different screens. A Mac version is in the works.
+
+## Linux
+
+Same port, same launcher page, Linux-native everywhere except the game's runtime:
+
+* **native:** the launcher (`nier-launcher`, Rust, the same menus drawn natively), the server (a Linux build of
+  `nier-server`), the setup and patchers (your Python 3, in `tools/venv`, made at the first setup)
+* **in Wine/Proton:** only the win.apk runtime (the game), in its own prefix (`prefix/` in the game
+  folder). Auto picks umu-run, then Proton (GE-Proton first), then Wine; change it in Settings ›
+  System › Compatibility layer. Vulkan is the default renderer (Direct3D 11 goes through DXVK).
+
+You need Python 3, 7-Zip (`7z`), and Steam's Proton, umu-launcher or Wine. Run
+`./nier-launcher` and feed it the same three files.
 
 ## Building
 
@@ -102,6 +114,8 @@ now. A Mac version is in the works.
 * **Server:** `cd server && go build ./cmd/...` (Go 1.22+)
 * **Launcher:** `cd launcher && OUT=<folder> bash build.sh` (MSYS2 CLANG64, WebView2 SDK)
 * **Release folder:** `python scripts/build_dist.py --out <folder> ...`
+* **Linux release folder:** `scripts/build_linux.sh --out <folder> --runtime <the runtime folder, or an
+  extracted Windows release>` (Go and cargo; the launcher is `launcher/linux`)
 
 ## Credits
 

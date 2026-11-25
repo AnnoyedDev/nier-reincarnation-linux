@@ -197,7 +197,7 @@ func (l *OctoLinks) AlsoLink(file func(objectId string) (path, md5 string, ok bo
 // lookup is every server copy an object's cache entry may be linked to.
 func (l *OctoLinks) lookup(objectId, assetType string) []assetCandidate {
 	candidates := l.find(objectId, assetType)
-	if l.extra != nil && assetType == "assetbundle" {
+	if l.extra != nil { // translated bundles and movies
 		if path, sum, ok := l.extra(objectId); ok {
 			candidates = append(candidates, assetCandidate{Path: path, Source: "translation", ExpectedMD5: sum})
 		}
