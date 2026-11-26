@@ -1,4 +1,9 @@
+# The fork
+
+Added a complete rewrite in rust and some addition to make it work flawlessly on Linux,[more info here](launcher/linux/)
+
 # NieR Re[in]carnation — PC port (unofficial)
+
 
 NieR Re[in]carnation died on April 29, 2024. This brings it back, running natively on Windows: your
 own copy, no emulator, no internet, no phone.
