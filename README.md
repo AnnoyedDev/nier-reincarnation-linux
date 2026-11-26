@@ -1,6 +1,6 @@
 # The fork
 
-Added a complete rewrite in rust and some addition to make it work flawlessly on Linux,[more info here](launcher/linux/)
+Added a complete rewrite in rust and some addition to make it work flawlessly on Linux, [more info here](launcher/linux/)
 
 # NieR Re[in]carnation — PC port (unofficial)
 
