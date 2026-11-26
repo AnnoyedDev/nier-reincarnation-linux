@@ -1,0 +1,62 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release tag (for example v1.1.0)"
+        required: true
+      runtime_tag:
+        description: "Tag of the AllenWalkerED/nier-reincarnation-pc release whose runtime/ folder is bundled"
+        required: true
+        default: "v1.3.1"
+      prerelease:
+        description: "Mark as pre-release"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    # 22.04: an older glibc, so the launcher runs on more distributions.
+    runs-on: ubuntu-22.04
+    env:
+      VERSION: ${{ inputs.version }}
+      RUNTIME_TAG: ${{ inputs.runtime_tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Test the launcher
+        working-directory: launcher
+        run: cargo test --locked
+
+      - name: Fetch the runtime from the Windows release
+        run: |
+          gh release download "$RUNTIME_TAG" --repo AllenWalkerED/nier-reincarnation-pc --pattern '*.zip' --dir upstream
+          unzip -q upstream/*.zip -d upstream/extracted
+          exe=$(find upstream/extracted -path '*/runtime/bin/winapk-runtime.exe' | head -n1)
+          [ -n "$exe" ] || { echo "no runtime/bin/winapk-runtime.exe in the $RUNTIME_TAG release" >&2; exit 1; }
+          echo "RUNTIME_DIR=$(dirname "$(dirname "$exe")")" >> "$GITHUB_ENV"
+
+      - name: Assemble the release folder
+        run: |
+          name="NieR-Reincarnation-Linux-$VERSION"
+          scripts/build_linux.sh --out "dist/$name" --runtime "$RUNTIME_DIR"
+          tar -C dist -czf "$name.tar.gz" "$name"
+          echo "ARCHIVE=$name.tar.gz" >> "$GITHUB_ENV"
+
+      - name: Publish the GitHub release
+        run: |
+          flags=()
+          [ "${{ inputs.prerelease }}" = "true" ] && flags+=(--prerelease)
+          gh release create "$VERSION" "$ARCHIVE" --target "$GITHUB_SHA" --title "NieR Re[in]carnation for Linux $VERSION" --generate-notes "${flags[@]}"
