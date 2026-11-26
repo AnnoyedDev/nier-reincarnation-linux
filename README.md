@@ -1,140 +1,125 @@
-# The fork
+<div align="center">
 
-Added a complete rewrite in rust and some addition to make it work flawlessly on Linux, [more info here](launcher/linux/)
+<img src="docs/logo.png" width="96" alt="">
 
-# NieR Re[in]carnation — PC port (unofficial)
+# NieR Re[in]carnation pour Linux
 
+**Le portage PC de NieR Re[in]carnation, avec un launcher natif pour Linux.**
 
-NieR Re[in]carnation died on April 29, 2024. This brings it back, running natively on Windows: your
-own copy, no emulator, no internet, no phone.
+**Français** | [English](README.en.md)
 
-Fan project, not affiliated with SQUARE ENIX or Applibot, and **the game isn't in here**. You bring
-your own files and the launcher turns them into a PC install. (Legal stuff: [NOTICE.md](NOTICE.md).)
+[![Licence : AGPL-3.0](https://img.shields.io/badge/licence-AGPL--3.0-1689C6)](LICENSE)
 
-![The launcher](docs/screenshots/settings-display.webp)
+</div>
 
-## So what kind of port is this?
+## D'où ça vient
 
-Not an emulator. There's no virtual phone, no Android running in the background. And not a source port
-either, since nobody has the game's source.
+L'idée et presque tout le travail viennent d'[AllenWalkerED](https://github.com/AllenWalkerED). J'ai
+tout repris de son portage, [nier-reincarnation-pc](https://github.com/AllenWalkerED/nier-reincarnation-pc),
+qui fait tourner le jeu sur Windows. Un immense merci à AllenWalkerED : sans ce portage, ce dépôt n'existerait
+pas. Je me suis contenté d'adapter son launcher à Linux.
 
-It's the actual Android game, running natively as a Windows program. Its arm64 code gets translated to
-native x86-64 code (on the fly at first, then ahead of time in the background, so it gets faster as you play), the bits of
-Android it expects are faked by the runtime, kinda like Wine does for Windows apps on Linux, and the
-graphics go through ANGLE to Direct3D 11 or Vulkan. The game itself is basically untouched, just a few
-small patches like the server address and the 30 fps cap.
+## Ce que c'est
 
-The official servers are gone, so the port runs [Lunar Tear](https://github.com/Walter-Sparrow/lunar-tear)
-locally, the fan-made server that brought the game back. Nothing leaves your PC.
+NieR Re[in]carnation a fermé le 29 avril 2024. Le portage d'AllenWalkerED le fait revivre sur PC avec
+votre propre copie du jeu : pas de téléphone, pas d'internet. Le jeu Android tourne dans un runtime
+qui traduit son code arm64 en x86-64, et le serveur fan [Lunar Tear](https://github.com/Walter-Sparrow/lunar-tear)
+remplace les serveurs officiels, en local sur votre PC.
 
-## Download
+Sous Linux, tout tourne en natif sauf le runtime du jeu. Le launcher, le serveur, l'installation et
+les patchs sont des programmes Linux. Seul le runtime passe par Wine ou Proton, dans son propre
+préfixe (`prefix/` dans le dossier du jeu).
 
-Grab `NieR-Reincarnation-PC-v1.2.zip` from [Releases](../../releases). Already playing an older version?
-Unzip it over your game folder, your saves and settings stay.
+Projet de fans, sans lien avec SQUARE ENIX ni Applibot. **Le jeu n'est pas fourni** : vous apportez
+vos propres fichiers. Les détails légaux sont dans [NOTICE.md](NOTICE.md).
 
-Got a save on your phone (Bunker)? Export it there, then Settings › Saves › **Import from phone**.
+![La page Système](docs/screenshots/system-fr.webp)
 
-## What you need
+## Ce qu'il faut
 
-* Windows 10 or 11 (64-bit)
-* A GPU that does Direct3D 11 or Vulkan
-* ~25 GB free, 8 GB RAM recommended
-* WebView2 (Windows 11 already has it)
+* Une distribution Linux 64 bits et une carte graphique compatible Vulkan
+* Python 3, 7-Zip (`7z`), et Proton (Steam), umu-launcher ou Wine
+* Environ 25 Go libres, 8 Go de RAM conseillés
 
-Plus three game files:
+Et les trois fichiers du jeu :
 
-1. the arm64 APK, version **3.7.1-152** (`com.square_enix.android_googleplay.nierspww`)
-2. `resource_dump_android.7z` (the asset dump)
-3. `20240404193219.bin.e` (the master data)
+1. l'APK arm64, version **3.7.1-152** (`com.square_enix.android_googleplay.nierspww`)
+2. `resource_dump_android.7z` (les assets)
+3. `20240404193219.bin.e` (la master data)
 
-The asset dump and master data are on the [Lunar Tear](https://github.com/Walter-Sparrow/lunar-tear)
-Discord: https://discord.gg/MZAf5aVkJG. The APK? Google it, it's out there.
+Les assets et la master data se trouvent sur le Discord de [Lunar Tear](https://github.com/Walter-Sparrow/lunar-tear) :
+https://discord.gg/MZAf5aVkJG. Ne postez aucun de ces fichiers dans les issues.
 
-Don't post any of these files in issues, please.
+## Installation
 
-## Setup
+Lancez `./nier-launcher` depuis le dossier du jeu et donnez-lui les trois fichiers. Le premier
+lancement décompresse environ 21 Go et patche le jeu, ce qui prend un moment. Vos fichiers d'origine
+ne sont pas modifiés.
 
-Unzip it anywhere, run `NieR.exe`, feed it the three files. First run unpacks ~21 GB and patches
-everything, so go grab a coffee. You only do this once, and your original files aren't touched.
+Ensuite, appuyez sur **START**. Les premières sessions rament un peu, le temps que le code du jeu soit
+traduit en arrière-plan (environ 15 minutes au total).
 
-Hit **START**. The first session or two will feel a bit sluggish while the game's code gets translated
-in the background (~15 min). After that you're good.
+Vous avez une sauvegarde sur téléphone (Bunker) ? Exportez-la là-bas, puis Paramètres > Sauvegardes >
+**Importer depuis le téléphone**.
 
-## The launcher
+## Les langues du jeu
 
-Made to look like the game's own menus. You get the game's quality presets plus a bunch of extras
-(upscaling, FXAA, frame rates up to unlimited), language and voice, some optional mods for the local
-server, and keyboard/controller bindings.
+Le texte peut être en anglais ou en coréen, les voix en anglais ou en japonais. Avant de choisir une
+langue dans le launcher, choisissez-la une première fois dans les options du jeu. Le jeu chiffre ce
+réglage avec une clé propre à chaque installation, donc le launcher ne peut pas l'écrire à l'aveugle :
+il relève la valeur pendant que le jeu tourne et l'applique à partir du lancement suivant. Le launcher
+affiche ce rappel quand vous changez de langue.
 
-![Graphics](docs/screenshots/settings-graphics.webp)
+![La page Langue](docs/screenshots/language-fr.webp)
 
-![Performance](docs/screenshots/settings-performance.webp)
+## Ce qui change par rapport au launcher Windows
 
-The **Events** tab lets you pick which banners and events are live. Everything's closed until you open
-it, except the permanent summons.
+* C'est un programme Linux natif (Rust et egui) au lieu de la page WebView2, avec les mêmes menus.
+* L'interface existe en français : Paramètres > Langue > Launcher.
+* Il ne cherche plus de mises à jour et ne contacte aucun site.
+* Paramètres > Système > Couche de compatibilité choisit ce qui lance le jeu. Auto essaie umu-run,
+  puis Proton (GE-Proton d'abord), puis Wine.
+* Le même onglet accepte des variables d'environnement, une par ligne (`MANGOHUD=1`,
+  `DXVK_HUD=fps`...), transmises au jeu à son démarrage.
+* Vulkan est le moteur de rendu par défaut. Direct3D 11 passe par DXVK.
+* Le serveur, l'installation et les patchs tournent en natif : le Python 3 du système (dans
+  `tools/venv`, créé au premier lancement) et son 7-Zip.
+* Les langues du texte et des voix sont apprises auprès du jeu au lieu d'être des valeurs fixes (voir
+  plus haut). Les valeurs fixes ne marchaient que sur la machine où elles avaient été relevées.
 
-![Events](docs/screenshots/events.webp)
+## En cas de problème
 
-And there's a save manager: multiple saves, plus an editor for what your save owns, with backups before
-every change.
+* Graphismes noirs ou bizarres : changez de moteur de rendu dans Paramètres > Affichage.
+* Le jeu ne démarre pas : essayez une autre couche dans Paramètres > Système.
+* Pour signaler un bug : Paramètres > Système > **Exporter les journaux**, puis ouvrez une issue avec
+  le zip. Vos noms d'utilisateur et de PC n'y figurent pas.
 
-![Saves](docs/screenshots/saves.webp)
+## Compiler
 
-![Save editor](docs/screenshots/save-editor.webp)
+* Runtime : win.apk au commit `640f38f06c4934664767abc365a43b3c6bd7dea3` avec
+  `git apply winapk/winapk-nier.patch`, compilé selon son README. C'est un build Windows, que Wine ou
+  Proton exécute. Vous pouvez aussi reprendre le dossier `runtime/` d'une release Windows.
+* Serveur : `cd server && go build ./cmd/...` (Go 1.22 ou plus).
+* Launcher : `cd launcher && cargo build --release`, puis `cargo test`.
+* Dossier de release : `scripts/build_linux.sh --out <dossier> --runtime <le dossier runtime, ou une
+  release Windows décompressée>` (Go et cargo).
 
-## Tested on
+Pour essayer le launcher sans l'installer : `NIER_ROOT=<dossier du jeu> launcher/target/release/nier-launcher`.
 
-RTX 3060, 3080, 4060 and 5060, an RX 580, and Intel integrated graphics (Iris Xe and others). Several
-people have put long sessions into it.
+## Crédits
 
-## Something broke?
+Le portage PC est le travail d'[AllenWalkerED](https://github.com/AllenWalkerED/nier-reincarnation-pc).
+Le portage Linux du launcher est celui d'AnnoyedDev.
 
-* **Black 3D or weird graphics:** switch the renderer in Settings › Display (Direct3D 11 is the default,
-  try Vulkan).
-* **Slow at first:** that's the background translation, give it a session or two.
-* **SmartScreen / antivirus yelling at you:** the exes aren't signed. Everything's built from the source
-  right here.
-* **Bug report:** Settings › System › **Export logs**, then open an issue and attach the zip. It leaves
-  out your Windows username and PC name.
-
-Known quirks: a few controller buttons do double duty on different screens. A Mac version is in the works.
-
-## Linux
-
-Same port, same launcher page, Linux-native everywhere except the game's runtime:
-
-* **native:** the launcher (`nier-launcher`, Rust, the same menus drawn natively), the server (a Linux build of
-  `nier-server`), the setup and patchers (your Python 3, in `tools/venv`, made at the first setup)
-* **in Wine/Proton:** only the win.apk runtime (the game), in its own prefix (`prefix/` in the game
-  folder). Auto picks umu-run, then Proton (GE-Proton first), then Wine; change it in Settings ›
-  System › Compatibility layer. Vulkan is the default renderer (Direct3D 11 goes through DXVK).
-
-You need Python 3, 7-Zip (`7z`), and Steam's Proton, umu-launcher or Wine. Run
-`./nier-launcher` and feed it the same three files.
-
-## Building
-
-* **Runtime:** win.apk at `640f38f06c4934664767abc365a43b3c6bd7dea3` + `git apply winapk/winapk-nier.patch`,
-  then build per its README (MSYS2 CLANG64, CMake)
-* **Server:** `cd server && go build ./cmd/...` (Go 1.22+)
-* **Launcher:** `cd launcher && OUT=<folder> bash build.sh` (MSYS2 CLANG64, WebView2 SDK)
-* **Release folder:** `python scripts/build_dist.py --out <folder> ...`
-* **Linux release folder:** `scripts/build_linux.sh --out <folder> --runtime <the runtime folder, or an
-  extracted Windows release>` (Go and cargo; the launcher is `launcher/linux`)
-
-## Credits
-
-The PC port is my work.
-
-Huge thanks to [Lunar Tear](https://github.com/Walter-Sparrow/lunar-tear) for bringing the game back,
-[win.apk](https://github.com/israel2176/win.apk) for the runtime underneath, and
-[Bunker](https://github.com/veritr1x/bunker), whose APK patch modules and server changes are included
-here under its MIT license. Also [Lunar Base](https://github.com/NMeliksah/lunar-base), the
-[Lunar Tear Comfort Mod](https://github.com/NavHobbyDev/lunar-tear-comfort-mod),
+Merci aussi à [Lunar Tear](https://github.com/Walter-Sparrow/lunar-tear), qui a fait revivre le jeu, à
+[win.apk](https://github.com/israel2176/win.apk) pour le runtime, et à [Bunker](https://github.com/veritr1x/bunker),
+dont les patchs de l'APK et les changements du serveur sont inclus sous licence MIT. Et à
+[Lunar Base](https://github.com/NMeliksah/lunar-base), au
+[Lunar Tear Comfort Mod](https://github.com/NavHobbyDev/lunar-tear-comfort-mod), à
 [lunar-tear-masterdata-patcher](https://github.com/NavHobbyDev/lunar-tear-masterdata-patcher), ANGLE,
-Eclipse Temurin, LLVM, texture2ddecoder, UnityPy and 7-Zip. And everyone who tested it.
+Eclipse Temurin, LLVM, texture2ddecoder, UnityPy et 7-Zip.
 
-## License
+## Licence
 
-AGPL-3.0 ([LICENSE](LICENSE)). Bundled stuff keeps its own license, see [NOTICE.md](NOTICE.md) and
-`licenses/`.
+AGPL-3.0 ([LICENSE](LICENSE)). Les composants inclus gardent leur propre licence : voir
+[NOTICE.md](NOTICE.md) et `licenses/`.

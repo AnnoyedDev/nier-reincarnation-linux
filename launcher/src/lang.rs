@@ -206,6 +206,8 @@ const FR: &[(&str, &str)] = &[
     ("Voices", "Voix"),
     ("Applied when the game starts. In-game keeps the game's own choice. This version shows its text in English or Korean; Japanese is for the voices.",
      "Appliqué au démarrage du jeu. « Dans le jeu » garde le choix du jeu. Cette version affiche son texte en anglais ou en coréen ; le japonais est pour les voix."),
+    ("Pick this language once in the game's own settings first. Each install stores it in its own way, so the launcher learns it from the game and applies it from the next start.",
+     "Choisissez d'abord cette langue une fois dans les options du jeu. Chaque installation l'enregistre à sa façon : le launcher l'apprend auprès du jeu et l'applique à partir du lancement suivant."),
     ("Changes to the game rules, made by the local server (Off is the original game). They apply each time the game starts and never undo what was already earned.",
      "Des changements aux règles du jeu, faits par le serveur local (Désactivé, c'est le jeu d'origine). Ils s'appliquent à chaque démarrage du jeu et n'annulent jamais ce qui a déjà été gagné."),
     ("Shop and summons", "Boutique et invocations"),
@@ -452,7 +454,7 @@ mod tests {
     fn french_follows_the_code() {
         assert_eq!(trf("{} of {}", &[&1, &"x"]), "1 of x");
         let code = [include_str!("ui.rs"), include_str!("main.rs"), include_str!("settings.rs"),
-                    include_str!("../../../tools/setup_game.py")].concat();
+                    include_str!("../../tools/setup_game.py")].concat();
         let mut seen = std::collections::HashSet::new();
         for (en, fr) in FR {
             assert!(seen.insert(en), "twice in the table: {en}");

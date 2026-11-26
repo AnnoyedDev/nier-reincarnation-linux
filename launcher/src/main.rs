@@ -140,8 +140,7 @@ fn set_game_prefs(runtime_data: &Path, prefs: &[(String, String)]) {
     if prefs.is_empty() {
         return;
     }
-    let file = runtime_data.join(
-        "android/data/data/NieR-loopback/shared_prefs/com.square_enix.android_googleplay.nierspww.v2.playerprefs.xml");
+    let file = game_prefs_file(runtime_data);
     let mut xml = read_text(&file);
     if !xml.contains("</map>") {
         return;
@@ -160,6 +159,75 @@ fn set_game_prefs(runtime_data: &Path, prefs: &[(String, String)]) {
         }
     }
     write_file(&file, xml.as_bytes());
+}
+
+const LANGUAGE_PREFS: [&str; 2] = ["CurrentSystemLanguage", "CurrentVoiceLanguage"];
+
+fn game_prefs_file(runtime_data: &Path) -> PathBuf {
+    runtime_data.join("android/data/data/NieR-loopback/shared_prefs/com.square_enix.android_googleplay.nierspww.v2.playerprefs.xml")
+}
+
+fn pref_value(xml: &str, name: &str) -> Option<String> {
+    let open = format!("<string name=\"{name}\">");
+    let at = xml.find(&open)? + open.len();
+    Some(xml[at..at + xml[at..].find("</string>")?].to_string())
+}
+
+fn language_values(runtime_data: &Path) -> serde_json::Map<String, Value> {
+    serde_json::from_str(&read_text(&runtime_data.join("language-prefs.json"))).unwrap_or_default()
+}
+
+fn resolve_language_prefs(runtime_data: &Path, prefs: &mut Vec<(String, String)>) {
+    let known = language_values(runtime_data);
+    prefs.retain_mut(|(k, v)| {
+        if !LANGUAGE_PREFS.contains(&k.as_str()) {
+            return true;
+        }
+        match known.get(v.as_str()).and_then(Value::as_str) {
+            Some(enc) => {
+                *v = enc.to_string();
+                true
+            }
+            None => false,
+        }
+    });
+}
+
+fn learn_language_prefs(runtime_data: &Path, log: &str) {
+    let Some(line) = log.lines().rev().find(|l| l.contains("CheckBeforeGamePlay:") && l.contains("voiceLang=")) else { return };
+    let num = |key: &str| line.split(key).nth(1).map(|r| r.chars().take_while(|c| c.is_ascii_digit()).collect::<String>());
+    let xml = read_text(&game_prefs_file(runtime_data));
+    let mut known = language_values(runtime_data);
+    let before = known.clone();
+    for (key, pref) in [("textLang=", LANGUAGE_PREFS[0]), ("voiceLang=", LANGUAGE_PREFS[1])] {
+        if let (Some(n), Some(enc)) = (num(key).filter(|n| !n.is_empty()), pref_value(&xml, pref)) {
+            known.insert(n, Value::String(enc));
+        }
+    }
+    if known != before {
+        write_file(&runtime_data.join("language-prefs.json"), Value::Object(known).to_string().as_bytes());
+    }
+}
+
+fn watch_language_prefs(runtime_data: PathBuf, running: std::sync::Arc<AtomicBool>) {
+    let log = path("logs/server.log");
+    let start = fs::metadata(&log).map_or(0, |m| m.len());
+    std::thread::spawn(move || {
+        let mut seen = 0;
+        while running.load(Ordering::Relaxed) {
+            std::thread::sleep(Duration::from_secs(2));
+            let mut text = String::new();
+            if let Ok(mut f) = File::open(&log) {
+                let _ = f.seek(SeekFrom::Start(start)).and_then(|_| f.read_to_string(&mut text));
+            }
+            let count = text.matches("CheckBeforeGamePlay:").count();
+            if count > seen {
+                seen = count;
+                std::thread::sleep(Duration::from_secs(1));
+                learn_language_prefs(&runtime_data, &text);
+            }
+        }
+    });
 }
 
 fn runtime_paths(env: &[(String, String)]) -> (PathBuf, PathBuf) {
@@ -276,6 +344,7 @@ fn start_game(mut l: Launch) {
     if big_cursor {
         l.env.push(("WINAPK_CURSOR_SCALE".into(), "1.5".into()));
     }
+    resolve_language_prefs(&runtime_data, &mut l.prefs);
     set_game_prefs(&runtime_data, &l.prefs);
 
     status("Starting the game...");
@@ -294,8 +363,11 @@ fn start_game(mut l: Launch) {
         Err(e) => to_page(format!("error:{}", trf("The game did not start ({}).", &[&e]))),
         Ok(mut game) => {
             track(&game);
+            let running = std::sync::Arc::new(AtomicBool::new(true));
+            watch_language_prefs(runtime_data.clone(), running.clone());
             let code = game.wait().ok().and_then(|s| s.code()).unwrap_or(-1);
             untrack(&game);
+            running.store(false, Ordering::Relaxed);
             runner.kill_all();
             to_page(format!("exited:{code}"));
         }
@@ -811,5 +883,27 @@ mod tests {
     fn names_are_replaced_in_any_case() {
         assert_eq!(replace_name("/home/Alice/x alice", "alice", "USER"), "/home/USER/x USER");
         assert_eq!(replace_name("ab ab", "ab", "X"), "ab ab");
+    }
+}
+
+#[cfg(test)]
+mod language_tests {
+    use super::*;
+
+    #[test]
+    fn learns_then_resolves() {
+        let dir = std::env::temp_dir().join(format!("nier-lang-{}", random_hex(8)));
+        let xml = "<map>\n    <string name=\"CurrentSystemLanguage\">AAA</string>\n    <string name=\"CurrentVoiceLanguage\">BBB</string>\n</map>";
+        let file = game_prefs_file(&dir);
+        fs::create_dir_all(file.parent().unwrap()).unwrap();
+        fs::write(&file, xml).unwrap();
+        let mut prefs = vec![("CurrentVoiceLanguage".to_string(), "22".to_string()), ("PerformanceLevel".to_string(), "x".to_string())];
+        resolve_language_prefs(&dir, &mut prefs);
+        assert_eq!(prefs, vec![("PerformanceLevel".to_string(), "x".to_string())]);
+        learn_language_prefs(&dir, "x\n[GamePlayService] CheckBeforeGamePlay: tr={} voiceLang=22 textLang=10\n");
+        let mut prefs = vec![("CurrentVoiceLanguage".to_string(), "22".to_string()), ("CurrentSystemLanguage".to_string(), "10".to_string())];
+        resolve_language_prefs(&dir, &mut prefs);
+        assert_eq!(prefs, vec![("CurrentVoiceLanguage".to_string(), "BBB".to_string()), ("CurrentSystemLanguage".to_string(), "AAA".to_string())]);
+        let _ = fs::remove_dir_all(&dir);
     }
 }

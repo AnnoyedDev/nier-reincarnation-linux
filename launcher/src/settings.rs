@@ -18,15 +18,6 @@ pub const QUALITY: [(&str, &str, &str, &str); 6] = [
 pub fn quality(v: &str) -> Option<(&'static str, &'static str, &'static str, &'static str)> {
     QUALITY.iter().copied().find(|q| q.0 == v)
 }
-pub fn language(v: &str) -> Option<&'static str> {
-    match v {
-        "10" => Some("cWI5k7i3OLE%3D"),
-        "22" => Some("242ZQj%2FEP%2FA%3D"),
-        "23" => Some("wGmNosNTgUI%3D"),
-        _ => None,
-    }
-}
-
 pub fn default_binds() -> Value {
     let b = |name: &str, scene: &str, vk: u32, key: &str, pad: &str, x: f64, y: f64| {
         json!({"name": name, "scene": scene, "vk": vk, "key": key, "pad": pad, "x": x, "y": y})
@@ -302,10 +293,11 @@ pub fn launch_prefs(s: &Value) -> Vec<(String, String)> {
     }
     let text = get_str(s, "language.text");
     if text == "10" || text == "23" {
-        p.push(("CurrentSystemLanguage".into(), language(&text).unwrap().into()));
+        p.push(("CurrentSystemLanguage".into(), text));
     }
-    if let Some(v) = language(&get_str(s, "language.voice")) {
-        p.push(("CurrentVoiceLanguage".into(), v.into()));
+    let voice = get_str(s, "language.voice");
+    if voice == "10" || voice == "22" {
+        p.push(("CurrentVoiceLanguage".into(), voice));
     }
     p
 }

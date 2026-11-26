@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Builds and assembles the Linux release folder:
 #
-#   nier-launcher            the launcher (launcher/linux, Rust + egui), native
+#   nier-launcher            the launcher (launcher/, Rust + egui), native
 #   cursors                  the game window's cursor (launcher/ui/game is made at setup)
 #   server/bin/nier-server   Lunar Tear (with Bunker's changes), a native Linux build
 #   tools/, third_party/     setup and the patchers (the system's Python 3, in tools/venv at first start)
@@ -35,8 +35,8 @@ echo "== server"
 (cd "$SRC/server" && CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o "$OUT/server/bin/nier-server" ./cmd/nier-server)
 
 echo "== launcher"
-(cd "$SRC/launcher/linux" && cargo build --release --locked 2>/dev/null || cargo build --release)
-install -m755 "$SRC/launcher/linux/target/release/nier-launcher" "$OUT/nier-launcher"
+(cd "$SRC/launcher" && cargo build --release --locked 2>/dev/null || cargo build --release)
+install -m755 "$SRC/launcher/target/release/nier-launcher" "$OUT/nier-launcher"
 mkdir -p "$OUT/launcher/ui" "$OUT/cursors"
 # launcher/ui/game: the title art, font and icons, made from the player's APK at setup.
 cp "$SRC/launcher/cursors/nier.cur" "$OUT/cursors/"

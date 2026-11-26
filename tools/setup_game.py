@@ -17,7 +17,7 @@ and this makes, under the port's folder:
   launcher\\ui\\game            the launcher's title art and font, from the APK
   setup.json                   what was done, for NieR.exe
 
-On Linux (launcher/linux) the same, with the system's 7-Zip, a symlink for a
+On Linux (launcher/) the same, with the system's 7-Zip, a symlink for a
 folder of assets, and the runtime step run in Wine by the launcher
 (NIER_LAUNCHER --install-runtime), which also gives the game its /data.
 
@@ -248,7 +248,7 @@ def step_runtime(root: Path):
         tail = (r.stderr or r.stdout).strip().splitlines()[-3:]
         fail("Installing the game failed: " + " / ".join(tail))
     if not WINDOWS:
-        return  # the launcher's Wine drive gives the game its /data (launcher/linux/src/wine.rs)
+        return  # the launcher's Wine drive gives the game its /data (launcher/src/wine.rs)
     # Java reads the game's files by their Android paths (/data/...), which
     # Windows resolves on the current drive: <drive>:\data leads there.
     link = Path(root.anchor) / "data"

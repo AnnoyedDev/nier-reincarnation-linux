@@ -1363,6 +1363,9 @@ impl App {
                     bar(ui, "Voices");
                     a.choice(ui, "language.voice", &[("", "In-game"), ("10", "English"), ("22", "日本語")]);
                     lead(ui, "Applied when the game starts. In-game keeps the game's own choice. This version shows its text in English or Korean; Japanese is for the voices.");
+                    if a.get("language.voice") != "" || a.get("language.text") == "23" {
+                        lead_colored(ui, "Pick this language once in the game's own settings first. Each install stores it in its own way, so the launcher learns it from the game and applies it from the next start.", ALERT);
+                    }
                 });
             }),
             "mods" => {
