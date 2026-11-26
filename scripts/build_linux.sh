@@ -6,7 +6,7 @@
 #   server/bin/nier-server   Lunar Tear (with Bunker's changes), a native Linux build
 #   tools/, third_party/     setup and the patchers (the system's Python 3, in tools/venv at first start)
 #   runtime/                 the win.apk runtime (Windows: bin, lib, jre, clang), run in Wine/Proton
-#   licenses/, README.md, LICENSE, NOTICE.md
+#   licenses/, README.md, README.fr.md, LICENSE, NOTICE.md
 #
 # The runtime is the one Windows build: take it from the Windows release zip
 # (its runtime/ folder) or from a win.apk build with winapk/winapk-nier.patch.
@@ -59,6 +59,6 @@ find "$OUT/tools" "$OUT/third_party" -name __pycache__ -type d -prune -exec rm -
 
 echo "== documents"
 cp -a "$SRC/licenses" "$OUT/"
-cp "$SRC/README.md" "$SRC/LICENSE" "$SRC/NOTICE.md" "$OUT/"
+cp "$SRC/README.md" "$SRC/README.fr.md" "$SRC/LICENSE" "$SRC/NOTICE.md" "$OUT/"
 mkdir -p "$OUT/data" "$OUT/save" "$OUT/logs"
 echo "Assembled $OUT (start: ./nier-launcher)"
